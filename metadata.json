@@ -1,0 +1,6 @@
+{
+  "name": "Trueworld Studio",
+  "description": "Professional Android Digital Audio Workstation with multitrack audio engine, DSP plugin rack, vocal studio, 88-key MIDI piano roll, Indian rhythm production, mixing console, mastering suite, and AI Music Assistant by Trueworld Entertainment Official.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

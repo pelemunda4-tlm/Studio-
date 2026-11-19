@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "CloudProject": {
+      "title": "CloudProject",
+      "description": "Cloud-backed Trueworld Studio DAW project snapshot owned by a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "title": { "type": "string", "description": "Project title (1-100 chars)." },
+        "bpm": { "type": "number", "description": "Project tempo in BPM (40-240)." },
+        "timeSignatureNum": { "type": "integer", "description": "Time signature numerator (1-16)." },
+        "timeSignatureDen": { "type": "integer", "description": "Time signature denominator (1-16)." },
+        "musicalKey": { "type": "string", "description": "Root key name." },
+        "scaleName": { "type": "string", "description": "Scale or Raga name." },
+        "trackCount": { "type": "integer", "description": "Number of tracks in project." },
+        "versionNumber": { "type": "integer", "description": "Current revision number." },
+        "snapshotPayload": { "type": "string", "description": "Serialized DAW session JSON." },
+        "notesSummary": { "type": "string", "description": "Optional producer notes." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": [
+        "userId",
+        "title",
+        "bpm",
+        "timeSignatureNum",
+        "timeSignatureDen",
+        "musicalKey",
+        "scaleName",
+        "trackCount",
+        "versionNumber",
+        "snapshotPayload",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ProjectVersion": {
+      "title": "ProjectVersion",
+      "description": "Historical version snapshot for a user DAW project.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "projectId": { "type": "string", "description": "Parent project document ID." },
+        "versionNumber": { "type": "integer", "description": "Sequential version number." },
+        "label": { "type": "string", "description": "Version label or milestone description." },
+        "snapshotPayload": { "type": "string", "description": "Serialized DAW session JSON." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp." }
+      },
+      "required": [
+        "userId",
+        "projectId",
+        "versionNumber",
+        "label",
+        "snapshotPayload",
+        "createdAt"
+      ]
+    },
+    "SharedPattern": {
+      "title": "SharedPattern",
+      "description": "Custom Indian rhythm or drum pattern saved and optionally shared.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Creator Firebase Auth UID." },
+        "authorName": { "type": "string", "description": "Creator display name." },
+        "name": { "type": "string", "description": "Pattern name." },
+        "style": { "type": "string", "description": "Rhythm style (e.g., Sambalpuri, Nagpuri, Jhumar, Bollywood, Worship)." },
+        "timeSignatureNum": { "type": "integer", "description": "Numerator (1-16)." },
+        "timeSignatureDen": { "type": "integer", "description": "Denominator (1-16)." },
+        "bpm": { "type": "number", "description": "Tempo BPM (40-240)." },
+        "stepsJson": { "type": "string", "description": "Serialized step sequencer grid." },
+        "shared": { "type": "boolean", "description": "Whether visible to other signed-in producers." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp." }
+      },
+      "required": [
+        "userId",
+        "authorName",
+        "name",
+        "style",
+        "timeSignatureNum",
+        "timeSignatureDen",
+        "bpm",
+        "stepsJson",
+        "shared",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SharedProject": {
+      "title": "SharedProject",
+      "description": "Shareable DAW project snapshot accessible by share code to signed-in collaborators.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "ownerName": { "type": "string", "description": "Owner display name." },
+        "projectTitle": { "type": "string", "description": "Shared project title." },
+        "bpm": { "type": "number", "description": "Tempo BPM." },
+        "musicalKey": { "type": "string", "description": "Project key." },
+        "snapshotPayload": { "type": "string", "description": "Serialized DAW session JSON." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp." }
+      },
+      "required": [
+        "ownerId",
+        "ownerName",
+        "projectTitle",
+        "bpm",
+        "musicalKey",
+        "snapshotPayload",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/CloudProject" },
+      "description": "User-owned cloud DAW project backups."
+    },
+    "/users/{userId}/projects/{projectId}/versions/{versionId}": {
+      "schema": { "$ref": "#/entities/ProjectVersion" },
+      "description": "Version history snapshots for a cloud DAW project."
+    },
+    "/shared_patterns/{patternId}": {
+      "schema": { "$ref": "#/entities/SharedPattern" },
+      "description": "Custom Indian and drum rhythm patterns."
+    },
+    "/shared_projects/{shareCode}": {
+      "schema": { "$ref": "#/entities/SharedProject" },
+      "description": "Collaborator-accessible shared DAW project snapshots."
+    }
+  }
+}

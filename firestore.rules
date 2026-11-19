@@ -1,0 +1,181 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidProject(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             (data.bpm is int || data.bpm is float) && data.bpm >= 40 && data.bpm <= 240 &&
+             data.timeSignatureNum is int && data.timeSignatureNum >= 1 && data.timeSignatureNum <= 16 &&
+             data.timeSignatureDen is int && data.timeSignatureDen >= 1 && data.timeSignatureDen <= 16 &&
+             data.musicalKey is string && data.musicalKey.size() >= 1 && data.musicalKey.size() <= 24 &&
+             data.scaleName is string && data.scaleName.size() >= 1 && data.scaleName.size() <= 40 &&
+             data.trackCount is int && data.trackCount >= 0 && data.trackCount <= 128 &&
+             data.versionNumber is int && data.versionNumber >= 1 &&
+             data.snapshotPayload is string && data.snapshotPayload.size() >= 2 && data.snapshotPayload.size() <= 600000 &&
+             (!('notesSummary' in data) || (data.notesSummary is string && data.notesSummary.size() <= 500)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidProjectVersion(data, userId, projectId) {
+      return data.userId is string && data.userId == userId &&
+             data.projectId is string && data.projectId == projectId &&
+             data.versionNumber is int && data.versionNumber >= 1 &&
+             data.label is string && data.label.size() >= 1 && data.label.size() <= 80 &&
+             data.snapshotPayload is string && data.snapshotPayload.size() >= 2 && data.snapshotPayload.size() <= 600000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidSharedPattern(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 60 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.style is string && data.style.size() >= 1 && data.style.size() <= 40 &&
+             data.timeSignatureNum is int && data.timeSignatureNum >= 1 && data.timeSignatureNum <= 16 &&
+             data.timeSignatureDen is int && data.timeSignatureDen >= 1 && data.timeSignatureDen <= 16 &&
+             (data.bpm is int || data.bpm is float) && data.bpm >= 40 && data.bpm <= 240 &&
+             data.stepsJson is string && data.stepsJson.size() >= 2 && data.stepsJson.size() <= 50000 &&
+             data.shared is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSharedProject(data) {
+      return data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+             data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 60 &&
+             data.projectTitle is string && data.projectTitle.size() >= 1 && data.projectTitle.size() <= 100 &&
+             (data.bpm is int || data.bpm is float) && data.bpm >= 40 && data.bpm <= 240 &&
+             data.musicalKey is string && data.musicalKey.size() >= 1 && data.musicalKey.size() <= 24 &&
+             data.snapshotPayload is string && data.snapshotPayload.size() >= 2 && data.snapshotPayload.size() <= 600000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /users/{userId}/projects/{projectId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(projectId);
+      allow create: if isOwner(userId) &&
+                       isValidId(projectId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'title', 'bpm', 'timeSignatureNum', 'timeSignatureDen',
+                         'musicalKey', 'scaleName', 'trackCount', 'versionNumber',
+                         'snapshotPayload', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'title', 'bpm', 'timeSignatureNum', 'timeSignatureDen',
+                         'musicalKey', 'scaleName', 'trackCount', 'versionNumber',
+                         'snapshotPayload', 'notesSummary', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidProject(incoming(), userId);
+      allow update: if isOwner(userId) &&
+                       isValidId(projectId) &&
+                       isValidProject(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'title', 'bpm', 'timeSignatureNum', 'timeSignatureDen',
+                         'musicalKey', 'scaleName', 'trackCount', 'versionNumber',
+                         'snapshotPayload', 'notesSummary', 'updatedAt'
+                       ]);
+      allow delete: if isOwner(userId) && isValidId(projectId);
+
+      match /versions/{versionId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(projectId) && isValidId(versionId);
+        allow create: if isOwner(userId) &&
+                         isValidId(projectId) &&
+                         isValidId(versionId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/projects/$(projectId)) &&
+                         incoming().keys().hasAll([
+                           'userId', 'projectId', 'versionNumber', 'label', 'snapshotPayload', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'projectId', 'versionNumber', 'label', 'snapshotPayload', 'createdAt'
+                         ]) &&
+                         isValidProjectVersion(incoming(), userId, projectId);
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(projectId) && isValidId(versionId);
+      }
+    }
+
+    match /shared_patterns/{patternId} {
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || existing().shared == true);
+      allow get: if isSignedIn() && isValidId(patternId) && (existing().userId == request.auth.uid || existing().shared == true);
+      allow create: if isSignedIn() &&
+                       isValidId(patternId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'authorName', 'name', 'style', 'timeSignatureNum',
+                         'timeSignatureDen', 'bpm', 'stepsJson', 'shared', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'authorName', 'name', 'style', 'timeSignatureNum',
+                         'timeSignatureDen', 'bpm', 'stepsJson', 'shared', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidSharedPattern(incoming());
+      allow update: if isSignedIn() &&
+                       isValidId(patternId) &&
+                       existing().userId == request.auth.uid &&
+                       isValidSharedPattern(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'authorName', 'name', 'style', 'timeSignatureNum',
+                         'timeSignatureDen', 'bpm', 'stepsJson', 'shared', 'updatedAt'
+                       ]);
+      allow delete: if isSignedIn() && isValidId(patternId) && existing().userId == request.auth.uid;
+    }
+
+    match /shared_projects/{shareCode} {
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow get: if isSignedIn() && isValidId(shareCode);
+      allow create: if isSignedIn() &&
+                       isValidId(shareCode) &&
+                       incoming().ownerId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'ownerId', 'ownerName', 'projectTitle', 'bpm', 'musicalKey',
+                         'snapshotPayload', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'ownerId', 'ownerName', 'projectTitle', 'bpm', 'musicalKey',
+                         'snapshotPayload', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidSharedProject(incoming());
+      allow update: if isSignedIn() &&
+                       isValidId(shareCode) &&
+                       existing().ownerId == request.auth.uid &&
+                       isValidSharedProject(incoming()) &&
+                       incoming().ownerId == existing().ownerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'ownerName', 'projectTitle', 'bpm', 'musicalKey', 'snapshotPayload', 'updatedAt'
+                       ]);
+      allow delete: if isSignedIn() && isValidId(shareCode) && existing().ownerId == request.auth.uid;
+    }
+  }
+}
